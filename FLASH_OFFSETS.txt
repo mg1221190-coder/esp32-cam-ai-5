@@ -1,0 +1,3 @@
+bootloader.bin @ 0x1000
+partitions.bin @ 0x8000
+ai-cam.bin @ 0x10000
