@@ -1,0 +1,56 @@
+name: Build ESP32 Firmware
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build ESP-IDF Binaries
+    runs-on: ubuntu-latest
+    container: espressif/idf:release-v5.1
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Fix Git Permissions
+        run: git config --global --add safe.directory '*'
+
+      - name: Build Firmware
+        shell: bash
+        run: |
+          . $IDF_PATH/export.sh
+
+          echo "=== CURRENT REPOSITORY FILES ==="
+          ls -la
+          echo "================================"
+
+          # Find any project CMakeLists.txt that is NOT inside a 'main' directory
+          CMAKES=$(find . -name "CMakeLists.txt" -not -path "*/main/*")
+
+          if [ -z "$CMAKES" ]; then
+            echo "ERROR: No project CMakeLists.txt was found anywhere in this repository!"
+            echo "Please make sure you uploaded the extracted files (CMakeLists.txt, sdkconfig.defaults, and the main folder)."
+            exit 1
+          fi
+
+          # Select the first matching project folder
+          PROJECT_DIR=$(dirname $(echo "$CMAKES" | head -n 1))
+
+          echo "Found project directory at: $PROJECT_DIR"
+          cd "$PROJECT_DIR"
+
+          idf.py set-target esp32
+          idf.py build
+
+      - name: Upload Binary Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: esp32cam-binaries
+          path: |
+            **/build/bootloader/bootloader.bin
+            **/build/partition_table/partition-table.bin
+            **/build/*.bin
+            
